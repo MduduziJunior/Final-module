@@ -230,21 +230,16 @@ async function loadActiveProfileFromSupabase(confirmLoad, autoLoad) {
       cloudRow = exactResult.data;
     }
 
-    // 2. If exact profile_key is not found, try username/profile_name.
+    // 2. If exact profile_key is not found, try exact username match.
     if (!cloudRow) {
-      const usernameValue = (p.username || p.profileName || "").trim();
+      const usernameValue = (p.username || "").trim();
 
       if (usernameValue) {
         const usernameResult = await client
           .from("profitpilot_profiles")
           .select("*")
           .eq("user_id", user.id)
-          .or(
-            "username.eq." +
-              usernameValue +
-              ",profile_name.eq." +
-              usernameValue
-          )
+          .eq("username", usernameValue)
           .order("updated_at", { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -259,29 +254,36 @@ async function loadActiveProfileFromSupabase(confirmLoad, autoLoad) {
       }
     }
 
-    // 3. Final fallback: load the latest saved cloud profile for this Supabase user.
-    // This fixes second-device login when the local profile_key is different.
+    // 3. If username is not found, try exact profile_name match.
     if (!cloudRow) {
-      const latestResult = await client
-        .from("profitpilot_profiles")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const profileNameValue = (p.profileName || p.username || "").trim();
 
-      if (latestResult.error) {
-        throw latestResult.error;
-      }
+      if (profileNameValue) {
+        const profileNameResult = await client
+          .from("profitpilot_profiles")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("profile_name", profileNameValue)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-      if (latestResult.data) {
-        cloudRow = latestResult.data;
+        if (profileNameResult.error) {
+          throw profileNameResult.error;
+        }
+
+        if (profileNameResult.data) {
+          cloudRow = profileNameResult.data;
+        }
       }
     }
 
+    // Important safety rule:
+    // Do NOT load the latest/random cloud profile.
+    // This prevents logging into one profile and opening another profile.
     if (!cloudRow) {
       throw new Error(
-        "No cloud profile found for this Supabase account. Make sure data was saved to cloud from the first device."
+        "No matching cloud profile found for this username/profile. This safety rule prevents loading another profile by mistake."
       );
     }
 
@@ -293,7 +295,7 @@ async function loadActiveProfileFromSupabase(confirmLoad, autoLoad) {
 
     if (confirmLoad) {
       const ok = confirm(
-        "Load from Supabase Cloud? This will replace this device's local cached profile with the latest cloud profile."
+        "Load from Supabase Cloud? This will replace this device's local cached profile with the matching cloud profile for this username only."
       );
 
       if (!ok) {
@@ -338,28 +340,28 @@ async function loadActiveProfileFromSupabase(confirmLoad, autoLoad) {
     store.activeProfileId = activeProfileId;
     store.lastCloudLoadAt = nowIso();
     store.latestAutoLoadResult =
-      "Loaded cloud profile: " + importedProfile.username;
+      "Loaded matching cloud profile: " + importedProfile.username;
 
     saveStore();
 
     if (typeof addAudit === "function") {
       addAudit(
         "Cloud Load",
-        "Loaded Supabase cloud profile using cross-device fallback."
+        "Loaded matching Supabase cloud profile using strict username/profile matching."
       );
     }
 
     renderAll();
 
     if (!autoLoad) {
-      alert("Loaded from Supabase Cloud successfully.");
+      alert("Loaded matching Supabase Cloud profile successfully.");
     }
   } catch (e) {
     if (!autoLoad) {
       alert(
         "Could not load from Supabase Cloud: " +
           (e.message || e) +
-          "\n\nDo not click Save to Cloud from this device until the cloud data loads correctly."
+          "\n\nSafety rule: ProfitPilot will not load another profile unless the username/profile matches."
       );
     }
 
@@ -367,7 +369,9 @@ async function loadActiveProfileFromSupabase(confirmLoad, autoLoad) {
       "Cloud load failed: " + (e.message || e);
     saveStore();
   }
-}
+}       
+
+      
 function queueAutoCloudSave(reason){autoSaveReason=reason;clearTimeout(autoSaveTimer);autoSaveTimer=setTimeout(()=>saveActiveProfileToSupabase(false),AUTO_SAVE_DELAY_MS);renderAutoSaveStatus()}
 function renderAutoSaveStatus(){if($("autoSaveStatus")){$("autoSaveStatus").className="alert warning";$("autoSaveStatus").textContent=`Auto-save status: ${autoSaveTimer?'Queued for 30 seconds after change':'Not queued'} | Reason: ${autoSaveReason||'None'} | Latest result: ${lastAutoSaveResult}`;}if($("autoSaveDetail")){$("autoSaveDetail").textContent=`Queued: ${autoSaveTimer?'Yes':'No'} | Reason: ${autoSaveReason||'None'} | Latest result: ${lastAutoSaveResult}`}}
 function renderCloudStatus(){const configured=isSupabaseConfigured();$("cloudStatus").className="alert "+(configured?"good":"warning");$("cloudStatus").textContent=configured?`Supabase config detected. ${cloudUser?'Signed in.':'Sign in before cloud save.'} Auto-load after login: ${store.lastCloudAutoLoadResult}`:"Supabase not configured yet. Local cache and JSON backup/import are active.";if($("cloudReadinessStatus"))$("cloudReadinessStatus").textContent=store.lastCloudAutoLoadResult||"Run readiness check before saving to cloud."}
