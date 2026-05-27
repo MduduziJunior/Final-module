@@ -147,7 +147,31 @@ async function saveTransaction(e){e.preventDefault();const file=$("transactionPr
 const item={id:$("transactionId").value||makeId(),date:$("transactionDate").value,month:$("transactionMonth").value,type:$("transactionType").value,status:$("transactionStatus").value,category:$("transactionCategory").value.trim(),originalAmount:parseNum($("transactionAmount").value),currency:$("transactionCurrency").value,rateToNTD:parseNum($("transactionRate").value),ntdAmount:ntd($("transactionAmount").value,$("transactionRate").value),method:$("transactionMethod").value.trim(),reference:$("transactionReference").value.trim(),reviewStatus:$("transactionReview").value,proofMeta,description:$("transactionDescription").value.trim(),note:$("transactionNote").value.trim(),updatedAt:nowIso()};recordSave("transactions",item,"transactionId","Transaction saved");clearTransactionForm()}
 function clearTransactionForm(){["transactionId","transactionCategory","transactionAmount","transactionMethod","transactionReference","transactionDescription","transactionNote"].forEach(id=>$(id).value="");$("transactionRate").value=1;$("transactionProofFile").value="";$("transactionReview").value="needs review";setDefaultDates()}
 function editTransaction(id){const x=currentProfile().transactions.find(r=>r.id===id);if(!x)return;Object.entries({transactionId:x.id,transactionDate:x.date,transactionMonth:x.month,transactionType:x.type,transactionStatus:x.status,transactionCategory:x.category,transactionAmount:x.originalAmount,transactionCurrency:x.currency,transactionRate:x.rateToNTD,transactionMethod:x.method,transactionReference:x.reference,transactionReview:x.reviewStatus||"needs review",transactionDescription:x.description,transactionNote:x.note}).forEach(([k,v])=>$(k).value=v??"");showTab("transactions")}
-function proofCell(x){if(x.proofMeta&&x.proofMeta.status==="stored")return `<span class="pill good">Stored</span><br>${escapeHtml(x.proofMeta.fileName||"")}`;if(x.proofMeta)return `<span class="pill warn">${escapeHtml(x.proofMeta.status)}</span><br>${escapeHtml(x.proofMeta.fileName||"")}`;return '<span class="pill zero">No proof</span>'}
+function proofCell(x) {
+  if (x.proofMeta && x.proofMeta.status === "stored") {
+    const fileName = escapeHtml(x.proofMeta.fileName || "Receipt proof");
+    const hasPath = Boolean(x.proofMeta.storagePath);
+
+    return `
+      <span class="pill good">Stored</span><br>
+      ${fileName}<br>
+      ${
+        hasPath
+          ? `<button type="button" class="secondary-btn" onclick="viewReceiptProof('${x.id}')">View Proof</button>`
+          : `<span class="pill warn">No cloud path</span>`
+      }
+    `;
+  }
+
+  if (x.proofMeta) {
+    return `
+      <span class="pill warn">${escapeHtml(x.proofMeta.status || "metadata only")}</span><br>
+      ${escapeHtml(x.proofMeta.fileName || "")}
+    `;
+  }
+
+  return '<span class="pill warn">No proof</span>';
+}
 function saveBudget(e){e.preventDefault();const item={id:$("budgetId").value||makeId(),month:$("budgetMonth").value,category:$("budgetCategory").value.trim(),originalAmount:parseNum($("budgetAmount").value),currency:$("budgetCurrency").value,rateToNTD:parseNum($("budgetRate").value),ntdAmount:ntd($("budgetAmount").value,$("budgetRate").value),updatedAt:nowIso()};recordSave("budgets",item,"budgetId","Budget saved");clearBudgetForm()}function clearBudgetForm(){$("budgetId").value="";$("budgetCategory").value="";$("budgetAmount").value="";$("budgetRate").value=1;setDefaultDates()}function editBudget(id){const x=currentProfile().budgets.find(r=>r.id===id);Object.entries({budgetId:x.id,budgetMonth:x.month,budgetCategory:x.category,budgetAmount:x.originalAmount,budgetCurrency:x.currency,budgetRate:x.rateToNTD}).forEach(([k,v])=>$(k).value=v??"");showTab("budgets")}
 function saveAsset(e){e.preventDefault();const costNtd=ntd($("assetCost").value,$("assetRate").value),currentNtd=ntd($("assetCurrentValue").value,$("assetRate").value),res=ntd($("assetResidual").value,$("assetRate").value),life=parseNum($("assetLife").value),monthly=$("assetDepreciable").value==="yes"&&life>0?Math.max((costNtd-res)/life,0):0;const item={id:$("assetId").value||makeId(),date:$("assetDate").value,month:$("assetMonth").value,name:$("assetName").value.trim(),category:$("assetCategory").value.trim(),cost:parseNum($("assetCost").value),currentValue:parseNum($("assetCurrentValue").value),currency:$("assetCurrency").value,rateToNTD:parseNum($("assetRate").value),costNtd,currentNtd,residualNtd:res,lifeMonths:life,monthlyDep:monthly,bookValue:Math.max(costNtd-monthly,0),depreciable:$("assetDepreciable").value,note:$("assetNote").value.trim(),updatedAt:nowIso()};recordSave("assets",item,"assetId","Asset saved");clearAssetForm()}function clearAssetForm(){["assetId","assetName","assetCategory","assetCost","assetCurrentValue","assetResidual","assetNote"].forEach(id=>$(id).value="");$("assetRate").value=1;$("assetLife").value=36;setDefaultDates()}function editAsset(id){const x=currentProfile().assets.find(r=>r.id===id);Object.entries({assetId:x.id,assetDate:x.date,assetMonth:x.month,assetName:x.name,assetCategory:x.category,assetCost:x.cost,assetCurrentValue:x.currentValue,assetCurrency:x.currency,assetRate:x.rateToNTD,assetResidual:(x.residualNtd||0)/(x.rateToNTD||1),assetLife:x.lifeMonths,assetDepreciable:x.depreciable,assetNote:x.note}).forEach(([k,v])=>$(k).value=v??"");showTab("assets")}
 function saveLiability(e){e.preventDefault();const item={id:$("liabilityId").value||makeId(),date:$("liabilityDate").value,month:$("liabilityMonth").value,name:$("liabilityName").value.trim(),category:$("liabilityCategory").value.trim(),originalAmount:parseNum($("liabilityAmount").value),currency:$("liabilityCurrency").value,rateToNTD:parseNum($("liabilityRate").value),ntdAmount:ntd($("liabilityAmount").value,$("liabilityRate").value),status:$("liabilityStatus").value,note:$("liabilityNote").value.trim(),updatedAt:nowIso()};recordSave("liabilities",item,"liabilityId","Liability saved");clearLiabilityForm()}function clearLiabilityForm(){["liabilityId","liabilityName","liabilityCategory","liabilityAmount","liabilityNote"].forEach(id=>$(id).value="");$("liabilityRate").value=1;setDefaultDates()}function editLiability(id){const x=currentProfile().liabilities.find(r=>r.id===id);Object.entries({liabilityId:x.id,liabilityDate:x.date,liabilityMonth:x.month,liabilityName:x.name,liabilityCategory:x.category,liabilityAmount:x.originalAmount,liabilityCurrency:x.currency,liabilityRate:x.rateToNTD,liabilityStatus:x.status,liabilityNote:x.note}).forEach(([k,v])=>$(k).value=v??"");showTab("liabilities")}
@@ -352,6 +376,48 @@ function expectedSupabaseSchema(){return{profitpilot_profiles:["id","user_id","p
 async function checkCloudTablesColumns(){const box=$("cloudSchemaStatus")||$("cloudReadinessStatus");if(!box)return;if(!isSupabaseConfigured()){box.className="alert warning";box.innerHTML="⚠️ Supabase is not configured yet. Paste Project URL and publishable key first.";return}const client=getSupabaseClient();if(!client){box.className="alert warning";box.innerHTML="⚠️ Supabase client is not available.";return}box.className="alert";box.innerHTML="Checking Supabase tables and required columns...";const schema=expectedSupabaseSchema();const results=[];for(const [table,cols] of Object.entries(schema)){const {error}=await client.from(table).select(cols.join(",")).limit(1);if(error){results.push([false,table,error.message||String(error)]);}else{results.push([true,table,"All required columns are accessible."]);}}const allOk=results.every(r=>r[0]);box.className="alert "+(allOk?"good":"danger");box.innerHTML=results.map(r=>`${r[0]?"✅":"❌"} <strong>${escapeHtml(r[1])}</strong>: ${escapeHtml(r[2])}`).join("<br>");if(!allOk){box.innerHTML+=`<br><br><strong>Fix:</strong> download and run the updated Supabase SQL setup. It now includes compatibility ALTER TABLE statements for old projects with missing columns.`;}renderCloudBackupReadiness()}
 function runEasyActivationCheck(){const box=$("easyActivationChecklist");const cfg=window.PROFITPILOT_SUPABASE_CONFIG||{};const rows=[["Project URL pasted",Boolean(cfg.projectUrl&&String(cfg.projectUrl).includes("supabase.co"))],["Publishable key pasted",Boolean(cfg.publishableKey&&String(cfg.publishableKey).length>20)],["Supabase client script loaded",Boolean(window.supabase&&window.supabase.createClient)],["Test 10 mode label",cfg.mode==="test10-final-recording-module"],["Browser online",navigator.onLine]];box.className="alert "+(rows.every(r=>r[1])?"good":"warning");box.innerHTML=rows.map(r=>`${r[1]?'✅':'⚠️'} ${r[0]}`).join("<br>")}
 async function uploadReceiptProof(file){const {client,user}=await ensureCloudSession();const p=currentProfile();const path=`${user.id}/${p.profileKey}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,"_")}`;const {error}=await client.storage.from("profitpilot-receipts").upload(path,file,{upsert:false});if(error)throw error;return{fileName:file.name,mimeType:file.type,size:file.size,status:"stored",storagePath:path,uploadedAt:nowIso()}}
+  async function viewReceiptProof(transactionId) {
+  try {
+    const p = currentProfile();
+
+    if (!p) {
+      throw new Error("No active profile.");
+    }
+
+    const tx = (p.transactions || []).find(x => x.id === transactionId);
+
+    if (!tx || !tx.proofMeta) {
+      throw new Error("No receipt proof is saved for this transaction.");
+    }
+
+    if (!tx.proofMeta.storagePath) {
+      throw new Error("This proof has metadata only; no Supabase Storage path was saved.");
+    }
+
+    const { client } = await ensureCloudSession();
+
+    const { data, error } = await client
+      .storage
+      .from("profitpilot-receipts")
+      .createSignedUrl(tx.proofMeta.storagePath, 300);
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data || !data.signedUrl) {
+      throw new Error("Supabase did not return a signed proof link.");
+    }
+
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  } catch (e) {
+    alert(
+      "Could not open receipt proof: " +
+        (e.message || e) +
+        "\n\nMake sure you are logged in to the same cloud account, then try again."
+    );
+  }
+}
 function queueReceiptRetry(fileName,err){const q=JSON.parse(localStorage.getItem(RECEIPT_QUEUE_KEY)||"[]");q.push({id:makeId(),time:nowIso(),fileName,error:err.message||String(err)});localStorage.setItem(RECEIPT_QUEUE_KEY,JSON.stringify(q))}
 function renderReceiptRetryQueue(){const q=JSON.parse(localStorage.getItem(RECEIPT_QUEUE_KEY)||"[]");if(!$("receiptRetryQueue"))return;$("receiptRetryQueue").innerHTML=q.length?q.map(x=>`<div class="alert warning"><strong>${escapeHtml(x.fileName)}</strong><br>${escapeHtml(x.error)}</div>`).join(""):'<div class="alert good">No receipt uploads waiting for retry.</div>'}
 function retryReceiptUploads(){alert("Retry queue stores failed receipt metadata only. Re-select the file in the transaction form to upload again safely.")}
